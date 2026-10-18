@@ -1,0 +1,256 @@
+import { BaseService } from './base.service'
+import { COLLECTIONS } from '@/config/appwrite'
+import { Customer } from '@/types'
+import { Query } from 'appwrite'
+import { toMinorUnits, fromMinorUnits } from '@/lib/money'
+
+/**
+ * Customer Service
+ * 
+ * Handles customer relationship management and due tracking under strict tenant isolation.
+ */
+export class CustomerService extends BaseService {
+  constructor() {
+    super(COLLECTIONS.CUSTOMERS)
+  }
+
+  /**
+   * Create customer with phone uniqueness validation
+   */
+  async createCustomer(
+    data: {
+      name: string
+      phone?: string
+      email?: string
+      address?: string
+      panNumber?: string
+      totalDue?: number
+      dueAmount?: number
+    },
+    businessId: string,
+    userId: string
+  ): Promise<Customer> {
+    const trimmedName = data.name ? data.name.trim() : ''
+    if (!trimmedName) {
+      throw new Error('Customer name is required')
+    }
+
+    const trimmedPhone = data.phone ? data.phone.trim() : ''
+    const trimmedEmail = data.email ? data.email.trim() : ''
+    const trimmedPan = data.panNumber ? data.panNumber.trim() : ''
+
+    // Duplicate customer protection using strong identifiers (Phone, Email, PAN)
+    if (trimmedPhone) {
+      const existingPhone = await this.getCustomerByPhone(businessId, trimmedPhone)
+      if (existingPhone && existingPhone.phone === trimmedPhone) {
+        throw new Error(`A customer with phone number "${trimmedPhone}" already exists for this business.`)
+      }
+    }
+
+    if (trimmedEmail) {
+      const existingEmail = await this.getCustomerByEmail(businessId, trimmedEmail)
+      if (existingEmail && existingEmail.email === trimmedEmail) {
+        throw new Error(`A customer with email address "${trimmedEmail}" already exists for this business.`)
+      }
+    }
+
+    if (trimmedPan) {
+      const existingPanList = await this.list<Customer>(businessId, [
+        Query.equal('panNumber', trimmedPan),
+        Query.limit(1),
+      ])
+      if (existingPanList.length > 0 && existingPanList[0].panNumber === trimmedPan) {
+        throw new Error(`A customer with PAN/VAT number "${trimmedPan}" already exists for this business.`)
+      }
+    }
+
+    const due = data.totalDue ?? data.dueAmount ?? 0
+
+    const customerData = {
+      name: trimmedName,
+      phone: trimmedPhone,
+      email: trimmedEmail,
+      address: data.address ? data.address.trim() : '',
+      panNumber: trimmedPan,
+      totalDue: due,
+      dueAmount: due,
+    }
+
+    return await this.create<Customer>(customerData, businessId, userId)
+  }
+
+  /**
+   * Get customer by ID
+   */
+  async getCustomer(customerId: string, businessId: string): Promise<Customer> {
+    return await this.getById<Customer>(customerId, businessId)
+  }
+
+  /**
+   * List customers for a business
+   */
+  async listCustomers(
+    businessId: string,
+    filters?: {
+      searchTerm?: string
+      hasDueOnly?: boolean
+      limit?: number
+    }
+  ): Promise<Customer[]> {
+    const limit = filters?.limit || 200
+    const queries: any[] = [Query.orderDesc('createdAt'), Query.limit(limit)]
+
+    if (filters?.searchTerm && filters.searchTerm.trim() !== '') {
+      queries.push(Query.search('name', filters.searchTerm.trim()))
+    }
+
+    if (filters?.hasDueOnly) {
+      queries.push(Query.greaterThan('totalDue', 0))
+    }
+
+    return await this.list<Customer>(businessId, queries)
+  }
+
+  /**
+   * List ALL customers for a business without limit (for reporting)
+   */
+  async listAllCustomers(
+    businessId: string,
+    filters?: {
+      hasDueOnly?: boolean
+    }
+  ): Promise<Customer[]> {
+    const queries: any[] = [Query.orderDesc('createdAt')]
+
+    if (filters?.hasDueOnly) {
+      queries.push(Query.greaterThan('totalDue', 0))
+    }
+
+    return await this.listAll<Customer>(businessId, queries)
+  }
+
+  /**
+   * Update customer record
+   */
+  async updateCustomer(
+    customerId: string,
+    data: Partial<{
+      name: string
+      phone: string
+      email: string
+      address: string
+      totalDue: number
+    }>,
+    businessId: string
+  ): Promise<Customer> {
+    if (data.phone && data.phone.trim() !== '') {
+      const existing = await this.getCustomerByPhone(businessId, data.phone)
+      if (existing && existing.$id !== customerId) {
+        throw new Error(`Customer with phone number "${data.phone}" already exists for this business`)
+      }
+    }
+
+    if (data.email && data.email.trim() !== '') {
+      const existing = await this.getCustomerByEmail(businessId, data.email)
+      if (existing && existing.$id !== customerId) {
+        throw new Error(`Customer with email "${data.email}" already exists for this business`)
+      }
+    }
+
+    const updatePayload: any = { ...data }
+    if (typeof data.totalDue === 'number') {
+      updatePayload.dueAmount = data.totalDue
+    }
+
+    return await this.update<Customer>(customerId, updatePayload, businessId)
+  }
+
+  /**
+   * Delete customer record
+   * Blocks deletion if the customer has an outstanding balance due.
+   */
+  async deleteCustomer(customerId: string, businessId: string): Promise<void> {
+    const customer = await this.getCustomer(customerId, businessId)
+    const summary = await this.getCustomerSummary(customerId, businessId)
+    const dueAmount = Math.max(customer.totalDue || 0, customer.dueAmount || 0, summary.totalDue || 0)
+
+    if (dueAmount > 0) {
+      throw new Error(
+        `Cannot delete customer "${customer.name}" with an outstanding balance due of Rs. ${dueAmount.toFixed(2)}. Please settle all pending dues before deleting.`
+      )
+    }
+
+    await this.delete(customerId, businessId)
+  }
+
+  /**
+   * Get customer by phone number within business
+   */
+  async getCustomerByPhone(businessId: string, phone: string): Promise<Customer | null> {
+    const results = await this.list<Customer>(businessId, [
+      Query.equal('phone', phone),
+      Query.limit(1)
+    ])
+    return results.length > 0 ? results[0] : null
+  }
+
+  /**
+   * Get customer by email address within business
+   */
+  async getCustomerByEmail(businessId: string, email: string): Promise<Customer | null> {
+    const results = await this.list<Customer>(businessId, [
+      Query.equal('email', email),
+      Query.limit(1)
+    ])
+    return results.length > 0 ? results[0] : null
+  }
+
+  /**
+   * Update customer due amount (adds or subtracts delta)
+   */
+  async updateDueAmount(
+    customerId: string,
+    delta: number,
+    businessId: string
+  ): Promise<Customer> {
+    const customer = await this.getCustomer(customerId, businessId)
+    const currentDuePaisa = toMinorUnits(customer.totalDue ?? customer.dueAmount ?? 0)
+    const deltaPaisa = toMinorUnits(delta)
+    const newTotalDuePaisa = Math.max(0, currentDuePaisa + deltaPaisa)
+    const newTotalDue = fromMinorUnits(newTotalDuePaisa)
+    return await this.update<Customer>(
+      customerId,
+      { totalDue: newTotalDue, dueAmount: newTotalDue },
+      businessId
+    )
+  }
+
+  /**
+   * Get customer summary with sales history and calculated balances
+   */
+  async getCustomerSummary(customerId: string, businessId: string) {
+    const customer = await this.getCustomer(customerId, businessId)
+    let sales: any[] = []
+    try {
+      const { saleService } = await import('./sale.service')
+      sales = await saleService.listAllSales(businessId, { customerId })
+    } catch {
+      // Fallback if sales query fails
+    }
+
+    const totalPurchases = sales.reduce((sum, s) => sum + (s.total ?? s.totalAmount ?? 0), 0)
+    const totalPaid = sales.reduce((sum, s) => sum + (s.paidAmount || 0), 0)
+    const computedDue = Math.max(0, totalPurchases - totalPaid)
+    const totalDue = sales.length > 0 ? computedDue : (customer.totalDue || 0)
+
+    return {
+      customer,
+      totalPurchases,
+      totalPaid,
+      totalDue,
+      sales,
+    }
+  }
+}
+
+export const customerService = new CustomerService()

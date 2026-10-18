@@ -1,0 +1,250 @@
+{
+  "lastUpdated": "2026-10-18T12:24:45.634Z",
+  "version": 2,
+  "offerBanner": {
+    "enabled": true,
+    "badge": "LIMITED TIME DEAL",
+    "text": "Special 30% discount on 1-Year plans for all new retail counters!",
+    "linkText": "Get Offer Now",
+    "linkUrl": "#pricing",
+    "discountCode": "NEPAL30",
+    "bgTheme": "emerald"
+  },
+  "hero": {
+    "badge": "🇳🇵 Built Specifically for Retail & Wholesale Shops in Nepal",
+    "titleLine1": "Simple Inventory, POS Billing &",
+    "titleLine2": "Udhaar Management for Nepal",
+    "description": "Manage products, live stock, sales, customer Udhaara Khata, VAT bills, and supplier payments in one lightweight application. Built for small shops across Nepal.",
+    "primaryCtaText": "Start Free on WhatsApp",
+    "primaryCtaLink": "https://wa.me/9779805330808?text=Hello%2C%20I%20want%20to%20know%20more%20about%20Inventory%20Lite%20for%20my%20business.",
+    "secondaryCtaText": "Explore Interactive Demo",
+    "secondaryCtaLink": "/demo",
+    "pricingHint": "Plans start from just NPR 699/month. Zero setup fees.",
+    "storeNameDemo": "Hamro Kirana & Hardware Store",
+    "trustBadges": [
+      {
+        "id": "tb-1",
+        "text": "Bilingual (English & Nepali)"
+      },
+      {
+        "id": "tb-2",
+        "text": "Works on Mobile & Tablet (PWA)"
+      },
+      {
+        "id": "tb-3",
+        "text": "Nepali Calendar (Bikram Sambat BS)"
+      },
+      {
+        "id": "tb-4",
+        "text": "No expensive barcode hardware required"
+      }
+    ]
+  },
+  "stats": {
+    "enabled": true,
+    "items": [
+      {
+        "id": "s-1",
+        "value": "500+",
+        "label": "Active Nepalese Shops",
+        "sublabel": "Across 25+ districts"
+      },
+      {
+        "id": "s-2",
+        "value": "रु. 10Cr+",
+        "label": "Monthly Sales Billed",
+        "sublabel": "With zero calculation errors"
+      },
+      {
+        "id": "s-3",
+        "value": "99.9%",
+        "label": "Uptime & Reliability",
+        "sublabel": "Cloud-backed database"
+      },
+      {
+        "id": "s-4",
+        "value": "रु. ०",
+        "label": "Setup / Hardware Cost",
+        "sublabel": "Use any phone or laptop"
+      }
+    ]
+  },
+  "pricing": {
+    "headline": "Affordable, Transparent Pricing for Nepalese Businesses",
+    "description": "No hidden setup fees, no per-transaction cuts. Choose the plan that fits your shop.",
+    "promoNotice": "Use code LITE2083 during checkout or on WhatsApp for instant festival discount!",
+    "plans": [
+      {
+        "id": "monthly",
+        "name": "Monthly Plan",
+        "nameNe": "मासिक योजना",
+        "price": 699,
+        "priceFormatted": "699",
+        "period": "/month",
+        "periodNe": "/महिना",
+        "billingNote": "Billed monthly. Cancel anytime.",
+        "isFeatured": false,
+        "features": [
+          "Full Inventory & Stock Management",
+          "Fast Counter POS Billing",
+          "Customer Udhaar Khata with SMS reminders",
+          "Sales & Purchase Registers",
+          "1 Shop / Branch access",
+          "Standard Support via WhatsApp"
+        ]
+      },
+      {
+        "id": "sixMonth",
+        "name": "6 Months Plan",
+        "nameNe": "६ महिना योजना",
+        "price": 3999,
+        "priceFormatted": "3,999",
+        "period": "/6 months",
+        "periodNe": "/६ महिना",
+        "regularPriceFormatted": "4,194",
+        "savingsFormatted": "195",
+        "discountPercent": 5,
+        "effectiveMonthly": "Equivalent to NPR 666.50/month",
+        "billingNote": "Billed every 6 months",
+        "isFeatured": false,
+        "features": [
+          "Everything in Monthly Plan",
+          "Bikram Sambat (BS) Tax Invoices",
+          "Thermal Receipt & A4 PDF Printing",
+          "Multi-user Staff Roles (Owner/Admin/Staff)",
+          "Daily Profit & Loss Reports",
+          "Priority WhatsApp Support"
+        ]
+      },
+      {
+        "id": "yearly",
+        "name": "1 Year Annual Plan",
+        "nameNe": "१ वर्ष योजना",
+        "price": 7599,
+        "priceFormatted": "7,599",
+        "period": "/year",
+        "periodNe": "/वर्ष",
+        "regularPriceFormatted": "8,388",
+        "savingsFormatted": "789",
+        "discountPercent": 10,
+        "effectiveMonthly": "Equivalent to NPR 633.25/month",
+        "billingNote": "Billed annually",
+        "isFeatured": true,
+        "badgeText": "BEST VALUE (RECOMMENDED)",
+        "features": [
+          "Everything in 6 Months Plan",
+          "Unlimited Products & Customers",
+          "Automated Low Stock & Udhaar WhatsApp Alerts",
+          "Free Shop Logo & Header Customization",
+          "Dedicated Account Manager in Nepal",
+          "Free Onboarding & Data Migration Assistance"
+        ]
+      }
+    ]
+  },
+  "features": {
+    "badge": "COMPLETE BUSINESS TOOLKIT",
+    "headline": "Everything Your Shop Needs at Your Fingertips",
+    "description": "Designed specifically around how retail and wholesale counters operate in Nepal.",
+    "items": [
+      {
+        "id": "f-1",
+        "title": "Real-time Stock Tracking with Low-Stock Alerts"
+      },
+      {
+        "id": "f-2",
+        "title": "Fast POS Counter Billing with Barcode Scanner support"
+      },
+      {
+        "id": "f-3",
+        "title": "Customer Udhaar (Credit) Ledger & Khata Management"
+      },
+      {
+        "id": "f-4",
+        "title": "Nepali Bikram Sambat (BS 2000-2090) Date Engine"
+      },
+      {
+        "id": "f-5",
+        "title": "NPR Lakhs & Crores Currency Formatting (रु.)"
+      },
+      {
+        "id": "f-6",
+        "title": "13% VAT Calculation & Tax Invoice Generation"
+      },
+      {
+        "id": "f-7",
+        "title": "Supplier Purchases & Outstanding Payable Tracking"
+      },
+      {
+        "id": "f-8",
+        "title": "Daily Cash Flow, Expenses & Profit/Loss Reports"
+      },
+      {
+        "id": "f-9",
+        "title": "Offline-ready Progressive Web App (PWA)"
+      },
+      {
+        "id": "f-10",
+        "title": "80mm Thermal Receipt and A4 Tax Bill Printing"
+      },
+      {
+        "id": "f-11",
+        "title": "Role-Based Access Control (Owner, Admin, Staff)"
+      },
+      {
+        "id": "f-12",
+        "title": "Multi-device Instant Cloud Data Sync"
+      }
+    ]
+  },
+  "faq": {
+    "badge": "FREQUENTLY ASKED QUESTIONS",
+    "headline": "Got Questions? We Have Answers",
+    "items": [
+      {
+        "id": "faq-1",
+        "question": "Do I need a computer or barcode scanner to use Inventory Lite?",
+        "answer": "No! Inventory Lite works smoothly on any smartphone, tablet, or laptop. You can scan barcodes directly using your phone camera, or search items by name and SKU without any extra hardware."
+      },
+      {
+        "id": "faq-2",
+        "question": "Does it support Bikram Sambat (BS) dates and NPR currency?",
+        "answer": "Yes! The system is natively built for Nepal. It includes an offline BS ↔ AD conversion engine (years 2000–2090 BS), Nepali numerals, and Nepalese Rupee Lakhs/Crores formatting (e.g. रु. १,५०,०००)."
+      },
+      {
+        "id": "faq-3",
+        "question": "How does Customer Udhaara (credit) tracking work?",
+        "answer": "Every customer has a dedicated credit ledger. When billing on POS, you can choose partial payment or full Udhaar. The customer ledger tracks balance due, payment history, and lets you print statements or send reminders."
+      },
+      {
+        "id": "faq-4",
+        "question": "What happens if my internet connection goes down?",
+        "answer": "Inventory Lite is a Progressive Web App (PWA) with offline authorization. You can continue viewing products, checking stock, and drafting bills on your device. Once reconnected, everything stays synced."
+      },
+      {
+        "id": "faq-5",
+        "question": "Can I print bills on standard thermal receipt printers?",
+        "answer": "Yes! It supports both 80mm/58mm thermal receipt printers (via Bluetooth/USB) and standard A4/A5 laser printers for official tax invoices."
+      },
+      {
+        "id": "faq-6",
+        "question": "Can multiple staff members use it with different permissions?",
+        "answer": "Yes! You can assign roles: Owner (full access), Admin (inventory, billing, reports), Staff (POS counter billing and product lookups only), and Auditor (read-only compliance records)."
+      },
+      {
+        "id": "faq-7",
+        "question": "How do I get started or request a personal demo?",
+        "answer": "You can explore our interactive online demo right now without signing up, or click the WhatsApp button to message our team for free setup assistance and a personalized walkthrough."
+      }
+    ]
+  },
+  "contact": {
+    "whatsappNumber": "9779805330808",
+    "whatsappMessageEn": "Hello, I want to know more about Inventory Lite and get an account for my business.",
+    "whatsappMessageNe": "नमस्कार, मलाई Inventory Lite बारे जानकारी चाहिएको छ र मेरो व्यवसायका लागि account बनाउन चाहन्छु।",
+    "supportEmail": "support@inventorylite.app",
+    "supportPhone": "+977-9805330808",
+    "address": "New Road, Kathmandu, Nepal",
+    "businessHours": "Sunday – Friday: 9:00 AM – 6:00 PM NPT"
+  }
+}

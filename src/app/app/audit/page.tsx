@@ -1,0 +1,455 @@
+"use client"
+
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useAuth } from '@/context/auth-context'
+import { getCurrentFiscalYear } from '@/lib/date/bs-date'
+import { PageHeader } from '@/components/ui/page-header'
+import { AuditFilterBar } from '@/components/features/audit/AuditFilterBar'
+import { AuditorDrillDownDrawer } from '@/components/features/audit/AuditorDrillDownDrawer'
+import { AuditOverviewTab } from '@/components/features/audit/AuditOverviewTab'
+import { SalesRegisterTab } from '@/components/features/audit/SalesRegisterTab'
+import { PurchaseRegisterTab } from '@/components/features/audit/PurchaseRegisterTab'
+import { VatSummaryTab } from '@/components/features/audit/VatSummaryTab'
+import { CustomerLedgerTab } from '@/components/features/audit/CustomerLedgerTab'
+import { SupplierLedgerTab } from '@/components/features/audit/SupplierLedgerTab'
+import { PaymentAuditTab } from '@/components/features/audit/PaymentAuditTab'
+import { InventoryCogsTab } from '@/components/features/audit/InventoryCogsTab'
+import { ProfitabilityTab } from '@/components/features/audit/ProfitabilityTab'
+import { ReturnsAdjustmentsTab } from '@/components/features/audit/ReturnsAdjustmentsTab'
+import { CancelledDocumentsTab } from '@/components/features/audit/CancelledDocumentsTab'
+import { AuditTrailTab } from '@/components/features/audit/AuditTrailTab'
+import { InvoiceSequenceTab } from '@/components/features/audit/InvoiceSequenceTab'
+import { IrdReadinessTab } from '@/components/features/audit/IrdReadinessTab'
+import { ReconciliationTab } from '@/components/features/audit/ReconciliationTab'
+import { ExportCenterTab } from '@/components/features/audit/ExportCenterTab'
+import { MegaReportExport } from '@/components/features/audit/MegaReportExport'
+
+import {
+  auditCenterService,
+  AuditOverviewKPIs,
+  CustomerLedgerEntry,
+  SupplierLedgerEntry,
+  PaymentAuditRecord,
+  ReturnsAdjustmentsRecord,
+  CancelledDocumentRecord,
+  ProfitabilityAuditSummary,
+} from '@/services/audit-center.service'
+import { customerService } from '@/services/customer.service'
+import { supplierService } from '@/services/supplier.service'
+import {
+  AuditFilterParams,
+  IrdReadinessStatus,
+  IrdReconciliationItem,
+  InvoiceSequenceAudit,
+} from '@/types'
+import { AuditLogEntry } from '@/services/audit-log.service'
+import {
+  ShieldCheck,
+  LayoutDashboard,
+  ShoppingCart,
+  ShoppingBag,
+  Percent,
+  Building2,
+  CreditCard,
+  Wallet,
+  Boxes,
+  TrendingUp,
+  RotateCcw,
+  XCircle,
+  FileText,
+  FileCheck2,
+  Download,
+  Lock,
+  Eye,
+  Briefcase,
+  AlertCircle,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+
+type ViewMode = 'owner' | 'accountant' | 'auditor'
+
+export default function AuditCenterPage() {
+  const { activeBusiness, memberships } = useAuth()
+  const [viewMode, setViewMode] = useState<ViewMode>('accountant')
+  const [activeTab, setActiveTab] = useState<string>('overview')
+
+  const [filters, setFilters] = useState<AuditFilterParams>({ fiscalYear: getCurrentFiscalYear() })
+  const [customers, setCustomers] = useState<{ id: string; name: string }[]>([])
+  const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([])
+
+  const [loading, setLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Data States
+  const [kpis, setKpis] = useState<AuditOverviewKPIs | null>(null)
+  const [salesData, setSalesData] = useState<any>(null)
+  const [purchaseData, setPurchaseData] = useState<any>(null)
+  const [vatData, setVatData] = useState<any>(null)
+  const [customerLedgers, setCustomerLedgers] = useState<CustomerLedgerEntry[]>([])
+  const [supplierLedgers, setSupplierLedgers] = useState<SupplierLedgerEntry[]>([])
+  const [payments, setPayments] = useState<PaymentAuditRecord[]>([])
+  const [inventoryAudit, setInventoryAudit] = useState<any>(null)
+  const [profitability, setProfitability] = useState<ProfitabilityAuditSummary | null>(null)
+  const [returns, setReturns] = useState<ReturnsAdjustmentsRecord[]>([])
+  const [cancelledDocs, setCancelledDocs] = useState<CancelledDocumentRecord[]>([])
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([])
+  const [sequenceAudit, setSequenceAudit] = useState<InvoiceSequenceAudit | null>(null)
+  const [irdStatus, setIrdStatus] = useState<IrdReadinessStatus | null>(null)
+  const [reconciliation, setReconciliation] = useState<IrdReconciliationItem[]>([])
+  const [reconciliationChecks, setReconciliationChecks] = useState<any[]>([])
+
+  // Drill Down State
+  const [drillDownItem, setDrillDownItem] = useState<{
+    type: 'invoice' | 'payment' | 'vat' | 'stock' | 'customer' | 'supplier'
+    title: string
+    referenceId: string
+    details: Record<string, any>
+  } | null>(null)
+
+  // Navigation Scroll Ref
+  const tabsContainerRef = useRef<HTMLDivElement>(null)
+
+  // Auto-scroll active tab into view when activeTab changes
+  useEffect(() => {
+    if (!tabsContainerRef.current) return
+    const activeEl = tabsContainerRef.current.querySelector<HTMLElement>(`[data-tab-id="${activeTab}"]`)
+    if (activeEl) {
+      activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+    }
+  }, [activeTab])
+
+  const scrollTabsContainer = (direction: 'left' | 'right') => {
+    if (!tabsContainerRef.current) return
+    const amount = direction === 'left' ? -220 : 220
+    tabsContainerRef.current.scrollBy({ left: amount, behavior: 'smooth' })
+  }
+
+  // Determine user role permission
+  const currentRole = memberships.find((m) => m.businessId === activeBusiness?.$id)?.role || 'owner'
+  const isAuditorMode = viewMode === 'auditor' || currentRole === 'auditor'
+
+  // Fetch filter dropdown options
+  useEffect(() => {
+    if (!activeBusiness?.$id) return
+    const bId = activeBusiness.$id
+    Promise.all([customerService.listAllCustomers(bId), supplierService.listAllSuppliers(bId)])
+      .then(([cList, sList]) => {
+        setCustomers(cList.map((c) => ({ id: c.$id, name: c.name })))
+        setSuppliers(sList.map((s) => ({ id: s.$id, name: s.name })))
+      })
+      .catch(() => {})
+  }, [activeBusiness?.$id])
+
+  // Primary Audit Data Fetcher
+  const loadAuditData = useCallback(async () => {
+    if (!activeBusiness?.$id) return
+
+    // Skip fetch if date range is invalid
+    if (filters.dateFrom && filters.dateTo && filters.dateFrom > filters.dateTo) {
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+      const bId = activeBusiness.$id
+
+      const results = await Promise.allSettled([
+        auditCenterService.getAuditOverviewKPIs(bId, filters),
+        auditCenterService.getSalesRegister(bId, filters),
+        auditCenterService.getPurchaseRegister(bId, filters),
+        auditCenterService.getVatSummary(bId, filters),
+        auditCenterService.getCustomerLedgers(bId, filters),
+        auditCenterService.getSupplierLedgers(bId, filters),
+        auditCenterService.getPaymentAudit(bId, filters),
+        auditCenterService.getInventoryCogsAudit(bId, filters),
+        auditCenterService.getProfitabilityAudit(bId, filters),
+        auditCenterService.getReturnsAdjustmentsAudit(bId, filters),
+        auditCenterService.getCancelledDocuments(bId, filters),
+        auditCenterService.getAuditTrail(bId, filters),
+        auditCenterService.getInvoiceSequenceAudit(bId, filters.fiscalYear),
+        auditCenterService.getIrdReadinessStatus(bId),
+        auditCenterService.getIrdReconciliation(bId, filters),
+        auditCenterService.runFullSystemReconciliation(bId, filters),
+      ])
+
+      const getVal = <T,>(index: number, fallback: T): T =>
+        results[index].status === 'fulfilled' ? (results[index] as PromiseFulfilledResult<T>).value : fallback
+
+      setKpis(getVal(0, null))
+      setSalesData(getVal(1, null))
+      setPurchaseData(getVal(2, null))
+      setVatData(getVal(3, null))
+      setCustomerLedgers(getVal(4, []))
+      setSupplierLedgers(getVal(5, []))
+      setPayments(getVal(6, []))
+      setInventoryAudit(getVal(7, null))
+      setProfitability(getVal(8, null))
+      setReturns(getVal(9, []))
+      setCancelledDocs(getVal(10, []))
+      setAuditLogs(getVal(11, []))
+      setSequenceAudit(getVal(12, null))
+      setIrdStatus(getVal(13, null))
+      setReconciliation(getVal(14, []))
+      setReconciliationChecks(getVal(15, []))
+    } catch (err: any) {
+      console.error('Audit Center Data Load Error:', err)
+      setError(err.message || 'Failed to load audit records.')
+    } finally {
+      setLoading(false)
+    }
+  }, [activeBusiness?.$id, filters])
+
+  useEffect(() => {
+    loadAuditData()
+  }, [loadAuditData])
+
+  const handleDrillDown = (title: string, refId: string, details: Record<string, any>) => {
+    setDrillDownItem({
+      type: 'invoice',
+      title,
+      referenceId: refId,
+      details,
+    })
+  }
+
+  const tabsList = [
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'sales', label: 'Sales Register', icon: ShoppingCart },
+    { id: 'purchases', label: 'Purchase Register', icon: ShoppingBag },
+    { id: 'vat', label: 'VAT / Tax Summary', icon: Percent },
+    { id: 'customers', label: 'Customer Ledger', icon: Building2 },
+    { id: 'suppliers', label: 'Supplier Ledger', icon: CreditCard },
+    { id: 'payments', label: 'Payment Audit', icon: Wallet },
+    { id: 'inventory', label: 'Inventory & COGS', icon: Boxes },
+    { id: 'profitability', label: 'Profitability', icon: TrendingUp },
+    { id: 'returns', label: 'Returns & Adjustments', icon: RotateCcw },
+    { id: 'cancelled', label: 'Cancelled Docs', icon: XCircle },
+    { id: 'audit-trail', label: 'Audit Trail', icon: FileText },
+    { id: 'sequence', label: 'Sequence Audit', icon: ShieldCheck },
+    { id: 'ird', label: 'IRD Readiness', icon: ShieldCheck },
+    { id: 'reconciliation', label: 'Reconciliation', icon: FileCheck2 },
+    { id: 'export', label: 'Export Center', icon: Download },
+  ]
+
+  if (error) {
+    return (
+      <div className="p-8 bg-white rounded-xl border border-red-200 shadow-xs text-center space-y-4 max-w-lg mx-auto">
+        <AlertCircle className="h-10 w-10 text-red-600 mx-auto" />
+        <h3 className="font-extrabold text-base text-slate-900">Unable to load Audit & Compliance Center</h3>
+        <p className="text-xs text-slate-600">{error}</p>
+        <Button onClick={loadAuditData} className="gap-2 bg-slate-900 text-white font-bold text-xs">
+          <RefreshCw className="h-4 w-4" /> Retry Audit Load
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6 pb-12">
+      {/* Page Header with View Mode Switcher */}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
+        <div>
+          <PageHeader
+            title="Audit & Compliance Center"
+            description="Financial visibility, tax reporting, ledgers, and transaction-level audit evidence."
+          />
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Auditor Mode Read-Only Tag */}
+          {isAuditorMode && (
+            <div className="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 text-xs font-extrabold flex items-center gap-1.5 shadow-xs">
+              <Lock className="h-3.5 w-3.5 text-amber-700" />
+              <span>Auditor Mode (Read-Only)</span>
+            </div>
+          )}
+
+          {/* View Mode Toggle Segmented Control */}
+          <div className="bg-slate-100 p-1 rounded-xl border border-slate-200 flex items-center gap-1 text-xs" role="group" aria-label="Audit View Selector">
+            <button
+              type="button"
+              aria-pressed={viewMode === 'owner'}
+              onClick={() => setViewMode('owner')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                viewMode === 'owner' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <Briefcase className={`h-3.5 w-3.5 ${viewMode === 'owner' ? 'text-white' : 'text-indigo-600'}`} />
+              <span>Owner View</span>
+            </button>
+            <button
+              type="button"
+              aria-pressed={viewMode === 'accountant'}
+              onClick={() => setViewMode('accountant')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                viewMode === 'accountant' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <FileText className={`h-3.5 w-3.5 ${viewMode === 'accountant' ? 'text-white' : 'text-indigo-600'}`} />
+              <span>Accountant View</span>
+            </button>
+            <button
+              type="button"
+              aria-pressed={viewMode === 'auditor'}
+              onClick={() => setViewMode('auditor')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                viewMode === 'auditor' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <Eye className={`h-3.5 w-3.5 ${viewMode === 'auditor' ? 'text-white' : 'text-amber-600'}`} />
+              <span>Auditor View</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Global Filter Bar */}
+      <AuditFilterBar
+        filters={filters}
+        onFilterChange={(f) => setFilters(f)}
+        onReset={() => setFilters({ fiscalYear: getCurrentFiscalYear() })}
+        customers={customers}
+        suppliers={suppliers}
+      />
+
+      {/* Horizontal Audit Tab Navigation Bar */}
+      <div className="relative border-b border-slate-200 bg-slate-50/50 rounded-xl p-1.5 shadow-2xs group">
+        {/* Desktop Left Scroll Button */}
+        <button
+          type="button"
+          onClick={() => scrollTabsContainer('left')}
+          aria-label="Scroll tabs left"
+          className="hidden md:flex absolute left-1 top-1/2 -translate-y-1/2 z-10 h-7 w-7 items-center justify-center rounded-lg bg-white/90 text-slate-600 shadow-xs border border-slate-200 hover:bg-slate-100 hover:text-slate-900 transition-opacity opacity-0 group-hover:opacity-100 focus:opacity-100"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+
+        {/* Scroll Container */}
+        <div
+          ref={tabsContainerRef}
+          className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent px-1 py-1 max-w-full"
+        >
+          <nav className="flex space-x-1.5 min-w-max px-1" role="tablist" aria-label="Audit Navigation Registers">
+            {tabsList.map((t) => {
+              const Icon = t.icon
+              const isActive = activeTab === t.id
+              return (
+                <button
+                  key={t.id}
+                  data-tab-id={t.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  aria-controls={`tabpanel-${t.id}`}
+                  onClick={() => setActiveTab(t.id)}
+                  className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                    isActive
+                      ? 'bg-white text-indigo-950 font-bold border-b-2 border-indigo-600 shadow-xs ring-1 ring-slate-200/80'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                  }`}
+                >
+                  <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`} />
+                  <span className="truncate">{t.label}</span>
+                </button>
+              )
+            })}
+          </nav>
+        </div>
+
+        {/* Desktop Right Scroll Button */}
+        <button
+          type="button"
+          onClick={() => scrollTabsContainer('right')}
+          aria-label="Scroll tabs right"
+          className="hidden md:flex absolute right-1 top-1/2 -translate-y-1/2 z-10 h-7 w-7 items-center justify-center rounded-lg bg-white/90 text-slate-600 shadow-xs border border-slate-200 hover:bg-slate-100 hover:text-slate-900 transition-opacity opacity-0 group-hover:opacity-100 focus:opacity-100"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Render Selected Tab */}
+      <div className="pt-2">
+        {activeTab === 'overview' && (
+          <AuditOverviewTab
+            kpis={kpis}
+            loading={loading}
+            onSelectTab={(tabId) => setActiveTab(tabId)}
+          />
+        )}
+
+        {activeTab === 'sales' && (
+          <SalesRegisterTab data={salesData} loading={loading} onDrillDown={handleDrillDown} />
+        )}
+
+        {activeTab === 'purchases' && (
+          <PurchaseRegisterTab data={purchaseData} loading={loading} onDrillDown={handleDrillDown} />
+        )}
+
+        {activeTab === 'vat' && <VatSummaryTab data={vatData} loading={loading} />}
+
+        {activeTab === 'customers' && (
+          <CustomerLedgerTab ledgers={customerLedgers} loading={loading} onDrillDown={handleDrillDown} />
+        )}
+
+        {activeTab === 'suppliers' && (
+          <SupplierLedgerTab ledgers={supplierLedgers} loading={loading} onDrillDown={handleDrillDown} />
+        )}
+
+        {activeTab === 'payments' && (
+          <PaymentAuditTab payments={payments} loading={loading} onDrillDown={handleDrillDown} />
+        )}
+
+        {activeTab === 'inventory' && (
+          <InventoryCogsTab data={inventoryAudit} loading={loading} onDrillDown={handleDrillDown} />
+        )}
+
+        {activeTab === 'profitability' && (
+          <ProfitabilityTab summary={profitability} loading={loading} />
+        )}
+
+        {activeTab === 'returns' && (
+          <ReturnsAdjustmentsTab records={returns} loading={loading} onDrillDown={handleDrillDown} />
+        )}
+
+        {activeTab === 'cancelled' && (
+          <CancelledDocumentsTab cancelled={cancelledDocs} loading={loading} onDrillDown={handleDrillDown} />
+        )}
+
+        {activeTab === 'audit-trail' && (
+          <AuditTrailTab logs={auditLogs} loading={loading} onDrillDown={handleDrillDown} />
+        )}
+
+        {activeTab === 'sequence' && <InvoiceSequenceTab audit={sequenceAudit} loading={loading} />}
+
+        {activeTab === 'ird' && <IrdReadinessTab status={irdStatus} loading={loading} />}
+
+        {activeTab === 'reconciliation' && (
+          <ReconciliationTab items={reconciliation} checks={reconciliationChecks} loading={loading} onDrillDown={handleDrillDown} />
+        )}
+
+        {activeTab === 'export' && (
+          <>
+            <MegaReportExport defaultFiscalYear={filters.fiscalYear || undefined} />
+            <ExportCenterTab
+              businessName={activeBusiness?.name || 'My Business'}
+              panNumber={activeBusiness?.panNumber || activeBusiness?.vatNumber || 'N/A'}
+              fiscalYear={filters.fiscalYear || '2081/82'}
+              salesData={salesData}
+              purchaseData={purchaseData}
+              vatData={vatData}
+              customerData={customerLedgers}
+              supplierData={supplierLedgers}
+            />
+          </>
+        )}
+      </div>
+
+      {/* Multi-Level Evidence Drill Down Drawer */}
+      <AuditorDrillDownDrawer item={drillDownItem} onClose={() => setDrillDownItem(null)} />
+    </div>
+  )
+}

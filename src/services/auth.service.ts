@@ -1,0 +1,172 @@
+import { account } from '@/config/appwrite'
+import { getAppwriteConfig, validateAppwriteConfig } from '@/lib/appwrite'
+import { ID, Models } from 'appwrite'
+import { formatE164Phone } from '@/lib/utils'
+
+/**
+ * Authentication Service
+ * 
+ * Handles all authentication operations using Appwrite Account API.
+ * Provides methods for user registration, login, session management, and password recovery.
+ */
+export class AuthService {
+  /**
+   * Register a new user account
+   */
+  async register(email: string, password: string, name: string, phone?: string): Promise<Models.User<Models.Preferences>> {
+    validateAppwriteConfig()
+    const userAcc = await account.create(
+      ID.unique(),
+      email,
+      password,
+      name
+    )
+
+    // Format phone number to E.164 standard (+977...) for Appwrite Auth Console
+    if (phone && phone.trim()) {
+      const formattedPhone = formatE164Phone(phone)
+      try {
+        await account.updatePrefs({ phone: formattedPhone, rawPhone: phone })
+      } catch {
+        // Non-blocking
+      }
+    }
+
+    return userAcc
+  }
+
+  /**
+   * Update native Appwrite Auth Phone number on user account
+   */
+  async updatePhone(phone: string, password?: string): Promise<Models.User<Models.Preferences> | null> {
+    if (!phone || !phone.trim()) return null
+    validateAppwriteConfig()
+    const formattedPhone = formatE164Phone(phone)
+
+    // 1. Try Web SDK account.updatePhone if password is provided
+    if (password) {
+      try {
+        const res = await account.updatePhone(formattedPhone, password)
+        return res
+      } catch (err) {
+        console.warn('[AuthService] account.updatePhone SDK warning:', err)
+      }
+    }
+
+    // 2. Always store formatted phone in user preferences
+    try {
+      return await account.updatePrefs({ phone: formattedPhone, rawPhone: phone })
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Login with email and password
+   * Automatically clears any pre-existing active session to prevent 409 conflict errors
+   */
+  async login(email: string, password: string): Promise<Models.Session> {
+    validateAppwriteConfig()
+    try {
+      await account.deleteSession('current')
+    } catch {
+      // No active session to delete, proceed with login
+    }
+    const session = await account.createEmailPasswordSession(email, password)
+    if (typeof document !== 'undefined') {
+      document.cookie = 'appwrite_session=true; path=/; max-age=31536000; SameSite=Lax'
+    }
+    return session
+  }
+
+  /**
+   * Logout current session
+   */
+  async logout(): Promise<{}> {
+    if (typeof document !== 'undefined') {
+      document.cookie = 'appwrite_session=; path=/; max-age=0; SameSite=Lax'
+    }
+    try {
+      return await account.deleteSession('current')
+    } catch {
+      return {}
+    }
+  }
+
+  /**
+   * Get current user account (authoritative check via Appwrite account.get())
+   */
+  async getCurrentUser(): Promise<Models.User<Models.Preferences> | null> {
+    if (!getAppwriteConfig().isConfigured) {
+      return null
+    }
+    try {
+      const user = await account.get()
+      if (user && typeof document !== 'undefined') {
+        document.cookie = 'appwrite_session=true; path=/; max-age=31536000; SameSite=Lax'
+      }
+      return user
+    } catch (error) {
+      if (typeof document !== 'undefined') {
+        document.cookie = 'appwrite_session=; path=/; max-age=0; SameSite=Lax'
+      }
+      return null
+    }
+  }
+
+  /**
+   * Get current session
+   */
+  async getCurrentSession(): Promise<Models.Session | null> {
+    try {
+      return await account.getSession('current')
+    } catch (error) {
+      return null
+    }
+  }
+
+  /**
+   * Update user account
+   */
+  async updateAccount(data: { name?: string; email?: string; password?: string }): Promise<Models.User<Models.Preferences>> {
+    return await account.updatePrefs(data)
+  }
+
+  /**
+   * Update current user password
+   */
+  async updatePassword(password: string, oldPassword?: string): Promise<Models.User<Models.Preferences>> {
+    return await account.updatePassword(password, oldPassword)
+  }
+
+  /**
+   * Request password recovery
+   */
+  async recoverPassword(email: string): Promise<Models.Token> {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'
+    return await account.createRecovery(email, `${origin}/auth/reset-password`)
+  }
+
+  /**
+   * Complete password recovery
+   */
+  async completePasswordRecovery(userId: string, secret: string, password: string): Promise<Models.Token> {
+    return await account.updateRecovery(userId, secret, password)
+  }
+
+  /**
+   * Create email verification
+   */
+  async createVerification(url: string): Promise<Models.Token> {
+    return await account.createVerification(url)
+  }
+
+  /**
+   * Update email verification
+   */
+  async updateVerification(userId: string, secret: string): Promise<Models.Token> {
+    return await account.updateVerification(userId, secret)
+  }
+}
+
+export const authService = new AuthService()
